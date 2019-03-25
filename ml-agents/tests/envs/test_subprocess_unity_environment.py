@@ -83,5 +83,8 @@ class SubprocessEnvironmentTest(unittest.TestCase):
         env.envs = [env_worker_0, env_worker_1]
         env.waiting = True
         combined_braininfo = env.step_await()['MockBrain']
-        self.assertTrue(combined_braininfo.vector_observations, [[1.0, 2.0], [1.0, 2.0], [3.0, 4.0]])
+        self.assertEqual(
+            combined_braininfo.vector_observations.tolist(),
+            [[1.0, 2.0], [1.0, 2.0], [3.0, 4.0]]
+        )
         self.assertEqual(combined_braininfo.agents, ['0-1', '0-2', '1-3'])

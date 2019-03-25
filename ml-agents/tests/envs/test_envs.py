@@ -1,6 +1,5 @@
 import unittest.mock as mock
 import pytest
-import struct
 
 import numpy as np
 
@@ -40,7 +39,7 @@ def test_reset(mock_communicator, mock_launcher):
     assert isinstance(brain_info, dict)
     assert isinstance(brain_info['RealFakeBrain'], BrainInfo)
     assert isinstance(brain_info['RealFakeBrain'].visual_observations, list)
-    assert isinstance(brain_info['RealFakeBrain'].vector_observations, list)
+    assert isinstance(brain_info['RealFakeBrain'].vector_observations, np.ndarray)
     assert len(brain_info['RealFakeBrain'].visual_observations) == brain.number_visual_observations
     assert len(brain_info['RealFakeBrain'].vector_observations) == \
            len(brain_info['RealFakeBrain'].agents)
@@ -67,7 +66,7 @@ def test_step(mock_communicator, mock_launcher):
     assert isinstance(brain_info, dict)
     assert isinstance(brain_info['RealFakeBrain'], BrainInfo)
     assert isinstance(brain_info['RealFakeBrain'].visual_observations, list)
-    assert isinstance(brain_info['RealFakeBrain'].vector_observations, list)
+    assert isinstance(brain_info['RealFakeBrain'].vector_observations, np.ndarray)
     assert len(brain_info['RealFakeBrain'].visual_observations) == brain.number_visual_observations
     assert len(brain_info['RealFakeBrain'].vector_observations) == \
            len(brain_info['RealFakeBrain'].agents)
