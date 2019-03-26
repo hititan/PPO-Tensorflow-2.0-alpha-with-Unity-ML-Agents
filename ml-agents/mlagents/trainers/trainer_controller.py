@@ -59,6 +59,7 @@ class TrainerController(object):
         self.global_step = 0
         self.meta_curriculum = meta_curriculum
         self.seed = training_seed
+        self.training_start_time = time()
         np.random.seed(self.seed)
         tf.set_random_seed(self.seed)
 
@@ -197,7 +198,6 @@ class TrainerController(object):
     def start_learning(self, env, trainer_config):
         # TODO: Should be able to start learning at different lesson numbers
         # for each curriculum.
-        self.training_start_time = time()
         if self.meta_curriculum is not None:
             self.meta_curriculum.set_all_curriculums_to_lesson_num(self.lesson)
         self._create_model_path(self.model_path)
