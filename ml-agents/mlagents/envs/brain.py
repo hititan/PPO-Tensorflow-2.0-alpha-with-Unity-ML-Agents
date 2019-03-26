@@ -38,7 +38,7 @@ class BrainInfo:
         self.max_reached = safe_concat_lists(self.max_reached, other.max_reached)
         self.agents = safe_concat_lists(self.agents, other.agents)
         self.previous_vector_actions = safe_concat_np_ndarray(
-            self.previous_vector_actions, other.previous_text_actions
+            self.previous_vector_actions, other.previous_vector_actions
         )
         self.previous_text_actions = safe_concat_lists(
             self.previous_text_actions, other.previous_text_actions
