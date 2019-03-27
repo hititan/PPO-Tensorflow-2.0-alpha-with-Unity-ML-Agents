@@ -272,7 +272,7 @@ class PPOTrainer(Trainer):
                 self.training_buffer[agent_id].reset_agent()
                 if info.local_done[l]:
                     self.cumulative_returns_since_policy_update.append(self.
-                                                                cumulative_rewards.get(agent_id, 0))
+                                                                       cumulative_rewards.get(agent_id, 0))
                     self.stats['Environment/Cumulative Reward'].append(
                         self.cumulative_rewards.get(agent_id, 0))
                     self.reward_buffer.appendleft(self.cumulative_rewards.get(agent_id, 0))

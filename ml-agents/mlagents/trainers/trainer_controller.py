@@ -45,7 +45,6 @@ class TrainerController(object):
 
         self.model_path = model_path
         self.summaries_dir = summaries_dir
-        self.training_stats = []
         self.external_brains = external_brains
         self.external_brain_names = external_brains.keys()
         self.logger = logging.getLogger('mlagents.envs')
@@ -302,7 +301,7 @@ class TrainerController(object):
             if self.meta_curriculum is not None:
                 trainer.write_summary(
                     self.global_step,
-                    delta_train_start,lesson_num=self.meta_curriculum
+                    delta_train_start, lesson_num=self.meta_curriculum
                         .brains_to_curriculums[brain_name]
                         .lesson_num)
             else:

@@ -78,7 +78,7 @@ def run_training(sub_id: int, run_seed: int, run_options, process_queue):
     tc = TrainerController(model_path, summaries_dir, run_id + '-' + str(sub_id),
                            save_freq, maybe_meta_curriculum,
                            load_model, train_model,
-                           keep_checkpoints, lesson, env.external_brains,
+                           keep_checkpoints, lesson, external_brains,
                            run_seed)
 
     # Signal that environment has been launched.
