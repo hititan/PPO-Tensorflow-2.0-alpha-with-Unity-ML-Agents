@@ -1,16 +1,17 @@
 import tensorflow as tf
 import numpy as np
 import time
-from utils.logger import log
+from utils.logger import log, Logger
 from pprint import pprint
-from mlagents.envs import UnityEnvironment
+#from mlagents.envs import UnityEnvironment
 from core.buffer import Buffer_PPO
 from core.policy import Policy_PPO
+from core.Env import UnityEnv
 
 
 class Trainer_PPO:
     def __init__(self,
-                 env=UnityEnvironment,
+                 env=UnityEnv,
                  epochs=10,
                  steps_per_epoch=1000,
                  max_episode_length=1000,
@@ -32,13 +33,9 @@ class Trainer_PPO:
         log("Policy Parameters")
         pprint(policy_params, indent=5, width=10)
 
-        self.buffer = Buffer_PPO(steps_per_epoch, gamma=gamma, lam=lam)
-
-        log(policy_params)
-        self.agent = Policy_PPO(**policy_params, num_actions= self.num_actions)
-
-        self.rew_metric = tf.keras.metrics.Mean(name='train_loss')
-        self.summary_writer = tf.summary.create_file_writer('./tmp/summaries')
+        self.buffer = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, gamma= gamma, lam= lam)
+        self.agent = Policy_PPO(**policy_params, num_actions= self.env.num_actions)
+        self.logger = Logger()
 
 
     def start(self):
@@ -51,15 +48,10 @@ class Trainer_PPO:
     # Main training loop
     def train(self):
 
-        start_time = time.time()
-        
-        info = self.env.reset()[self.default_brain]
-        o= info.vector_observations[0]
-        r, d, ep_ret, ep_len = 0, False, 0, 0
+        o, r, d = self.env.reset()
+        ep_ret, ep_len = 0, 0
          
         for epoch in range(self.epochs):
-
-            self.rew_metric.reset_states()
 
             for step in range(self.steps_per_epoch):
 
@@ -69,11 +61,7 @@ class Trainer_PPO:
                 self.buffer.store(o, a, r, v_t, logp_t)
                 
                 # make step in env
-                info = self.env.step([a])[self.default_brain] # a is int here
-
-                r = info.rewards[0]
-                d = info.local_done[0]
-                o = info.vector_observations[0]
+                o, r, d = self.env.step(a)
                   
                 ep_ret += r
                 ep_len += 1
@@ -81,6 +69,7 @@ class Trainer_PPO:
                 terminal =  d or (ep_len == self.max_episode_length)
 
                 if terminal or (step == self.steps_per_epoch-1):
+
                     if not terminal:
                         log('Warning: trajectory was cut off by epoch at %d steps.' %(ep_len))
 
@@ -88,30 +77,22 @@ class Trainer_PPO:
                     self.buffer.finish_path(last_val)
 
                     if terminal:
-                        self.rew_metric.update_state(ep_ret)
-                        # self.logger.store(EpRet=ep_ret, EpLen=ep_len)
+                        self.logger.store('Rewards', ep_ret)
+                        self.logger.store('Eps Length', ep_len)
                                 
-                    info = self.env.reset()[self.default_brain]
-                    o = info.vector_observations[0]
-                    r, d, ep_ret, ep_len = 0, False, 0, 0
+                    o, r, d = self.env.reset()
+                    ep_ret, ep_len = 0, 0
       
             #Update via PPO and Logging
             obs, act, adv, ret, logp_old = self.buffer.get()
-            self.agent.update(obs,act,adv, ret, logp_old)
+            loss_pi, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
             
-            mean_rew = self.rew_metric.result()
-            log('Mean Reward: {:.3f}'.format(mean_rew))
+            self.logger.store('Pi Loss', loss_pi)
+            self.logger.store('KL', kl)
+            self.logger.store('V Loss', loss_v)
 
-            with self.summary_writer.as_default():
-                tf.summary.scalar('Mean Reward', mean_rew, step=epoch)
+            self.logger.log_metrics(epoch)
+
+            
 
     
-    @property
-    def default_brain(self):
-        return self.env.brain_names[0]
-
-    @property
-    def num_actions(self):
-        brain = self.env.brains[self.default_brain]
-        info = self.env.reset()[self.default_brain]
-        return brain.vector_action_space_size[0]

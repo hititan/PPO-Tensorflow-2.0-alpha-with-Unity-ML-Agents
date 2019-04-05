@@ -30,8 +30,8 @@ policy_params:
   
   train_pi_iters: 80    
   train_v_iters: 80
-  hidden_sizes_pi: [64,32]
-  hidden_sizes_v: [64,32,]
+  hidden_sizes_pi: [32,32]
+  hidden_sizes_v: [32,32]
   clip_ratio: 0.2
   target_kl: 0.01
 

@@ -2,6 +2,7 @@ import core
 from pprint import pprint
 from mlagents.envs import UnityEnvironment
 from utils.logger import log
+from core.Env import UnityEnv
 
 
 class Manager:
@@ -17,12 +18,7 @@ class Manager:
         self.policy_params = policy_params  # Policy Parameters from yaml config 
 
         # Start ML Agents Environment | Without filename in editor training is started
-        log("ML AGENTS INFO")
-        if self.env_name=="":
-            self.env = UnityEnvironment(file_name = None)
-        else:
-            self.env = UnityEnvironment(file_name = env_name, seed = train_params['seed'])
-        log("END ML AGENTS INFO")
+        self.env = UnityEnv(env_name=env_name,seed =train_params['seed'])
         
 
     def start(self):

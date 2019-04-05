@@ -32,27 +32,29 @@ class Policy_PPO():
         self.optimizer_pi = tf.keras.optimizers.Adam(lr=lr_pi)
         self.optimizer_v = tf.keras.optimizers.Adam(lr=lr_v)
 
-        self.loss_metric = tf.keras.metrics.Mean(name='train_loss')
 
 
     def update(self, observations, actions, advs, returns, logp_t):
-        self.loss_metric.reset_states()
+
         for i in range(self.train_pi_iters):
             loss_pi, kl = self.train_pi_one_step(self.pi, self.optimizer_pi, observations, actions, advs, logp_t)
-            #print('Loss_Pi: {:.2f}'.format(loss_pi.numpy().mean()))
-            #print('KL     :' + str(kl.numpy().mean()))
             if kl > 1.5 * self.target_kl:
                 log("Early stopping at step %d due to reaching max kl." %i)
                 break
-        #mean_loss = self.loss_metric.result()
-        #log('Loss: {:.3f}'.format(mean_loss))
-        #log('KL  : {:.3f}'.format(kl.numpy().mean()))
+
         for _ in range(self.train_v_iters):
             loss_v = self.train_v_one_step(self.v, self.optimizer_v, observations, returns)
-        #log('V-Loss: {:.3f}'.format(loss_v.numpy().mean())) 
-    
+
+        return loss_pi.numpy().mean(), kl.numpy().mean(), loss_v.numpy().mean()
+
+    def checkpoint(self):
+        ckpt_pi = tf.train.Checkpoint(step=tf.Variable(1),optimizer = self.optimizer_pi, net=self.pi)
+        return ckpt_pi
+        #self.pi.save_weights('./models', save_format='tf')
+
     def _value_loss(self, returns, value):
         return kls.mean_squared_error(returns, value)
+
 
     def _pi_loss(self, logits, logp_old, act, adv):
         logp = tf.reduce_sum(tf.one_hot(act,self.num_actions)*tf.nn.log_softmax(logits), axis=1)
@@ -71,7 +73,6 @@ class Policy_PPO():
             
         grads = tape.gradient(pi_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(grads, model.trainable_variables))
-        self.loss_metric.update_state(pi_loss)
         return pi_loss, approx_kl
 
 
