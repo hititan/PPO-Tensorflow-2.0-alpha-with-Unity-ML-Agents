@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-//using System;
 using UnityEngine;
 using MLAgents;
 
@@ -60,7 +59,6 @@ public class CartPole_Agent: Agent {
                 default:
                     break;
             }
-
         }
         
         if(useDone)
@@ -69,24 +67,24 @@ public class CartPole_Agent: Agent {
             {
                 Done();
             }
-
             if (Cart.transform.localPosition.z < -2.4f || Cart.transform.localPosition.z > 2.4f)
             {
                 Done();
             }
         }
      
-        AddReward(1.0f);
+        SetReward(1.0f);
     }
 
     public override void AgentReset()
     {
+        rbCart.AddForce(new Vector3(0,0,0), ForceMode.Force);
         rbCart.velocity = new Vector3(0, 0, 0);
         rbPole.angularVelocity = new Vector3(0, 0, 0);
-        
-        rbCart.transform.localPosition = new Vector3(0, 0, Random.Range(-0.1f, 0.1f));
-        rbPole.rotation = Quaternion.identity;
-        rbPole.transform.localRotation= Quaternion.Euler(Random.Range(-12f, 12f), 0, 0);
+
+        Pole.transform.rotation = new Quaternion(0f, 0f, 0f, 0f);
+        Pole.transform.Rotate(new Vector3(1,0,0), Random.Range(-10f,10f));
+        Cart.transform.position=new Vector3(0,0,0);   
     }
 
     private float getAngel()
@@ -103,6 +101,6 @@ public class CartPole_Agent: Agent {
 
     public override void AgentOnDone()
     {
-
+        // just to destroy agent
     }
 }

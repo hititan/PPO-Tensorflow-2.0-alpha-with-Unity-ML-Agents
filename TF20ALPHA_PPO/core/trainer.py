@@ -18,6 +18,9 @@ class Trainer_PPO:
                  gamma=0.99,
                  lam=0.97,
                  seed=0,
+                 training=True,
+                 load_model=False,
+                 save_freq=1,
                  policy_params=dict(),
                  **kwargs):
 
@@ -28,6 +31,9 @@ class Trainer_PPO:
         self.gamma = gamma
         self.lam = lam
         self.seed= seed
+        self.training = training
+        self.load_model = load_model
+        self.save_freq = save_freq
         self.policy_params = policy_params
 
         log("Policy Parameters")
@@ -35,14 +41,23 @@ class Trainer_PPO:
 
         self.buffer = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, gamma= gamma, lam= lam)
         self.agent = Policy_PPO(**policy_params, num_actions= self.env.num_actions)
-        self.logger = Logger()
+        self.logger = Logger(self.env.get_env_academy_name)
 
-
+        
     def start(self):
-        log("Starting Trainer ...")
+
         tf.random.set_seed(self.seed)
         np.random.seed(self.seed)
-        self.train()
+
+        if self.load_model:
+            self.agent.load()
+
+        if self.training:
+            log("Starting Trainer ...", color="warning")
+            self.train()
+        else:
+            log("Starting Inference ...", color="warning")
+            self.inference()
 
 
     # Main training loop
@@ -55,8 +70,8 @@ class Trainer_PPO:
 
             for step in range(self.steps_per_epoch):
 
-                a, logp_t = self.agent.pi.get_action_logp(o[None, :])
-                v_t = self.agent.v.get_value(o[None, :])           
+                a, logp_t = self.agent.pi.get_action_logp(o)
+                v_t = self.agent.v.get_value(o)           
                  
                 self.buffer.store(o, a, r, v_t, logp_t)
                 
@@ -72,27 +87,62 @@ class Trainer_PPO:
 
                     if not terminal:
                         log('Warning: trajectory was cut off by epoch at %d steps.' %(ep_len))
-
-                    last_val = r if d else self.agent.v.get_value(o[None, :])
+                        
+                    last_val = r if d else self.agent.v.get_value(o)
                     self.buffer.finish_path(last_val)
 
-                    if terminal:
+                    if terminal and ep_len > 10:
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
-                                
+
                     o, r, d = self.env.reset()
                     ep_ret, ep_len = 0, 0
       
-            #Update via PPO and Logging
+            # Update via PPO
             obs, act, adv, ret, logp_old = self.buffer.get()
-            loss_pi, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
+            loss_pi, loss_entropy, approx_ent, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
+
+            # Saving every n steps
+            if (epoch % self.save_freq == 0) or (epoch == self.epochs - 1):
+                self.agent.save()
             
+            # Logging
             self.logger.store('Pi Loss', loss_pi)
+            self.logger.store('Ent Loss', loss_entropy)
+            self.logger.store('Approx Ent', approx_ent)
             self.logger.store('KL', kl)
             self.logger.store('V Loss', loss_v)
-
             self.logger.log_metrics(epoch)
 
             
+    def inference(self):
+
+        o, r, d = self.env.reset()
+        ep_ret, ep_len = 0, 0
+         
+        for epoch in range(self.epochs):
+
+            for step in range(self.steps_per_epoch):
+
+                a, _ = self.agent.pi.get_action_logp(o)
+                          
+                # make step in env
+                o, r, d = self.env.step(a)
+                  
+                ep_ret += r
+                ep_len += 1
+
+                terminal =  d or (ep_len == self.max_episode_length)
+
+                if terminal or (step == self.steps_per_epoch-1):
+
+                    if terminal and ep_len > 10:
+                        self.logger.store('Rewards', ep_ret)
+                        self.logger.store('Eps Length', ep_len)
+
+                    o, r, d = self.env.reset()
+                    ep_ret, ep_len = 0, 0
+      
+            self.logger.log_metrics(epoch)
 
     

@@ -9,10 +9,12 @@
 /UnitySDK/Assets/Plugins*
 /UnitySDK/Assets/Gizmos*
 /UnitySDK/Assets/Demonstrations*
+__pycache__
 
 # Tensorflow Model Info
 /models
 /summaries
+tmp
 
 # Training environments
 /envs

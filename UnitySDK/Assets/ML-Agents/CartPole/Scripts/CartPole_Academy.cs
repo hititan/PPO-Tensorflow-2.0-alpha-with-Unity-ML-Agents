@@ -5,46 +5,40 @@ using MLAgents;
 
 public class CartPole_Academy : Academy
 {
-
     private float myTimeScale = 1;
+    public GUIStyle customStyle;
 
     public override void AcademyReset()
     {
-
         Time.timeScale = myTimeScale;
+        this.SetIsInference(true);
     }
 
     public override void AcademyStep()
     {
-
         Time.timeScale = myTimeScale;
+        
     }
 
     void OnGUI()
     {
 
-        if (GUI.Button(new Rect(10, 10, 200, 25), "SPEED"))
+        if (GUI.Button(new Rect(10, 10, 181, 25), "NORMAL - SPEED", customStyle))
         {
-            if (myTimeScale == 1)
-            {
-                myTimeScale = 20f;
-            }
-            else
-            {
-                myTimeScale = 1f;
-            }
+            myTimeScale = 1f;
+            this.SetIsInference(true);
+        }
 
-            // if (GUI.Button(new Rect(10, 10, 50, 30), "Speed"))
-            // {
-            //     if (this.GetIsInference())
-            //     {
-            //         this.SetIsInference(false);
-            //     }
-            //     else
-            //     {
-            //         this.SetIsInference(true);
-            //     }
-            // }
+        if (GUI.Button(new Rect(10, 40, 181, 25), "20 x SPEED", customStyle))
+        {
+            myTimeScale = 20f;
+            this.SetIsInference(true);
+        }
+
+        if (GUI.Button(new Rect(10, 70, 181, 25), "100 x SPEED", customStyle))
+        {
+            myTimeScale = 100f;
+            this.SetIsInference(true);
 
         }
 

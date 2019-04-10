@@ -1,5 +1,6 @@
 from mlagents.envs import UnityEnvironment
 from utils.logger import log
+import gym
 
 
 class UnityEnv():
@@ -19,8 +20,12 @@ class UnityEnv():
         #print(self.info)
 
     @property
-    def get_env(self):
+    def _get_env(self):
         return self.env
+
+    @property
+    def get_env_academy_name(self):
+        return self.env.academy_name
 
     @property
     def default_brain(self):
@@ -37,17 +42,49 @@ class UnityEnv():
         return self.info.vector_observations.size
     
     def reset(self):
+        self.env.step([0])
         info = self.env.reset()[self.default_brain]
-        o = info.vector_observations[0]
+        o = info.vector_observations[0][None, :]
         r, d = 0, False
         return o, r, d
+
 
     def step(self, a):
         info = self.env.step([a])[self.default_brain] # a is int here
         r = info.rewards[0]
         d = info.local_done[0]
-        o = info.vector_observations[0]
+        o = info.vector_observations[0][None, :]
         return o, r, d
+        
+
+
+class GymCartPole():
+    def __init__(self):
+        self.env = gym.make('CartPole-v1')
+        self.env.seed(0)
+
+    @property
+    def num_actions(self):
+        return 2
+    
+    @property
+    def get_env_academy_name(self):
+        return 'OpenAIGym_CartPole_v1'
+
+    @property
+    def num_obs(self):
+        return 4
+
+    def reset(self):
+        o, r, d = self.env.reset(), 0, False
+        return o[None, :], r, d
+
+    def step(self, action):
+        o, r, d, _ = self.env.step(action.numpy())
+        return o[None, :], r, d
+
+
+
 
   
         

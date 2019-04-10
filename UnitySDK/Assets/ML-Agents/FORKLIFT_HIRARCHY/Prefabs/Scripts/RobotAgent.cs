@@ -42,8 +42,8 @@ public class RobotAgent : Agent
     public override void CollectObservations()
     {
 
-        AddVectorObs(1f);
-        AddVectorObs(0f);
+        AddVectorObs(this.transform.position);
+        AddVectorObs(this.transform.rotation.eulerAngles);
         AddVectorObs(0f);
         AddVectorObs(0f);
         AddVectorObs(0f);

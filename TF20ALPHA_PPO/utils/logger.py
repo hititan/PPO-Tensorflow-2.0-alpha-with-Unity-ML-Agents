@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import time
 
 
 color2code = dict(
@@ -25,10 +26,13 @@ def logStr(str=""):
 
 class Logger():
 
-    def __init__(self):
+    def __init__(self, academy_name=''):
 
         self.metrics = dict()
-        self.summary_writer = tf.summary.create_file_writer('./tmp/summaries')
+
+        file_name_str = academy_name + '__' + str(time.time())
+        self.path = ''
+        self.summary_writer = tf.summary.create_file_writer('./tmp/summaries/' + file_name_str)
 
 
     def store(self, name, value):
@@ -42,16 +46,20 @@ class Logger():
 
         log('MEAN METRICS START', color="ok")
 
+        logStr('{:<10s}{:>10}'.format("Epoch", step))
+
         if not self.metrics:
             logStr('NO METRICS')
+            
         else:
             for key, metric in self.metrics.items():
                 value = metric.result()
                 logStr('{:<10s}{:>10.5f}'.format(key, value))
-                metric.reset_states()
 
                 with self.summary_writer.as_default():
                     tf.summary.scalar(key, value, step=step)
+                
+                metric.reset_states()
         
         log('MEAN METRICS END', color="ok")
 
