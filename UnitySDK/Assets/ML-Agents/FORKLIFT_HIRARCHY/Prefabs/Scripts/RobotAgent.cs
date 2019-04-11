@@ -23,6 +23,9 @@ public class RobotAgent : Agent
     public float rpm = 1;
     float wheelRPM;
 
+    public GameObject MainBody;
+    public GameObject Palette;
+
     private string sceneName;
 
     public override void InitializeAgent()
@@ -41,22 +44,29 @@ public class RobotAgent : Agent
 
     public override void CollectObservations()
     {
-
-        AddVectorObs(this.transform.position);
-        AddVectorObs(this.transform.rotation.eulerAngles);
-        AddVectorObs(0f);
-        AddVectorObs(0f);
-        AddVectorObs(0f);
-        AddVectorObs(0f);
-        
-
+        if (brain.name == "RobotPlayerBrain")
+        {
+            for (int i=0 ; i < brain.brainParameters.vectorObservationSize; i++)
+            {
+                AddVectorObs(0f);
+            }
+        }
+        else
+        {
+            AddVectorObs(Palette.transform.position.x / 10);
+            AddVectorObs(Palette.transform.position.z / 10);
+            AddVectorObs(MainBody.transform.position.x / 10);
+            AddVectorObs(MainBody.transform.position.z / 10);
+            AddVectorObs(MainBody.transform.rotation.eulerAngles.y * 3.14f / 180f);
+            AddVectorObs(MainBody.GetComponent<Rigidbody>().velocity.x);
+            AddVectorObs(MainBody.GetComponent<Rigidbody>().velocity.z);
+            AddVectorObs(MainBody.GetComponent<Rigidbody>().angularVelocity.y);
+        }
     }
 
     public override void AgentAction(float[] vectorAction, string textAction)
     {
         var act = (int)vectorAction[0];
-
-
 
         switch (act)
         {
@@ -64,11 +74,14 @@ public class RobotAgent : Agent
                 //Left
                 rbLeftWheel.angularVelocity = rbLeftWheel.transform.up * wheelRPM;
                 rbRightWheel.angularVelocity = -rbRightWheel.transform.up * wheelRPM;
+                SetReward(-0.1f);
                 break;
             case 2:
                 //Right
                 rbLeftWheel.angularVelocity = -rbLeftWheel.transform.up * wheelRPM;
-                rbRightWheel.angularVelocity = rbRightWheel.transform.up * wheelRPM; break;
+                rbRightWheel.angularVelocity = rbRightWheel.transform.up * wheelRPM; 
+                SetReward(-0.1f);
+                break;
             case 3:
                 // Forward
                 rbLeftWheel.angularVelocity = -rbLeftWheel.transform.up * wheelRPM;
@@ -99,20 +112,55 @@ public class RobotAgent : Agent
                 rbRightWheel.angularVelocity = rbRightWheel.transform.up * 0f;
                 break;
         }
-
-        checkForRewards();
+        // checkForRewards();
     }
 
     void checkForRewards()
     {
-
-
+        // Dense Rewards
+        float distance = Vector3.Distance(MainBody.transform.position, Palette.transform.position);
+        double reward = 10f / distance;
+        reward = System.Math.Round(reward,0);
+        
+        if (reward == 1)
+        {
+            reward = 0; 
+        }
+        // print("Distance Reward: " + reward);
+        SetReward(System.Convert.ToSingle(reward/10));
     }
 
 
     public override void AgentReset()
     {
+        // Physics stability with setting all to zero positon and rotation
+        // Set Physics time in Unity from 0.02 to 0.04
+        // Set Physics Solver Iterations down to get more stable physics e.g. to 1
 
+        MainBody.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
+        MainBody.GetComponent<Rigidbody>().velocity = Vector3.zero;
+        MainBody.transform.rotation = new Quaternion(0, 0, 0, 0);
+        MainBody.transform.position = new Vector3(0, 0.4f, 0);
+
+        Palette.transform.rotation = new Quaternion(0, 0, 0, 0);
+        Palette.transform.position = new Vector3(Random.value * 14 - 7, 0.4f, Random.value * 14 - 7);
     }
 
+    public void CollisionDetected(CollisionDetection colDect, Collider col)
+    {
+        // Collider with Trigger
+        if (col.gameObject.name == "Palette")
+        {
+            // print("Collided with " + col.gameObject.name);
+            SetReward(2f);
+            Done();
+        }
+
+        if (col.gameObject.name == "Fence")
+        {
+            // print("Collided with " + col.gameObject.name);
+            SetReward(-1f);
+            Done();
+        }
+    }
 }

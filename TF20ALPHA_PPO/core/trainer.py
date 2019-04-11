@@ -91,7 +91,7 @@ class Trainer_PPO:
                     last_val = r if d else self.agent.v.get_value(o)
                     self.buffer.finish_path(last_val)
 
-                    if terminal and ep_len > 10:
+                    if terminal: # and ep_len > 10:
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
 
