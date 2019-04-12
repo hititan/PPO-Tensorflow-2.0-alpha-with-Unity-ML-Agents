@@ -13,10 +13,15 @@ def statistics_scalar(x):
 
 class Buffer_PPO:
 
-    def __init__(self, size, obs_size= None, gamma= 0.99, lam= 0.95):
+    def __init__(self, size, obs_size= None, act_size= None, act_type='discrete', gamma= 0.99, lam= 0.95):
 
         self.obs_buf = np.empty((size, obs_size), dtype=np.float32)
-        self.act_buf = np.empty((size,), dtype=np.int32)
+
+        if act_type == 'discrete':
+            self.act_buf = np.empty((size,), dtype=np.int32)
+        else:
+            self.act_buf = np.empty((size, act_size), dtype=np.float32) 
+
         self.adv_buf = np.empty((size,), dtype=np.float32)
         self.rew_buf = np.empty((size,), dtype=np.float32)
         self.ret_buf = np.empty((size,), dtype=np.float32)

@@ -3,9 +3,9 @@ import numpy as np
 import time
 from utils.logger import log, Logger
 from pprint import pprint
-#from mlagents.envs import UnityEnvironment
 from core.buffer import Buffer_PPO
-from core.policy import Policy_PPO
+from core.policy_categorical import Policy_PPO_Categorical
+from core.policy_continuous import Policy_PPO_Continuous
 from core.Env import UnityEnv
 
 
@@ -39,8 +39,14 @@ class Trainer_PPO:
         log("Policy Parameters")
         pprint(policy_params, indent=5, width=10)
 
-        self.buffer = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, gamma= gamma, lam= lam)
-        self.agent = Policy_PPO(**policy_params, num_actions= self.env.num_actions)
+        self.buffer = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, act_size= self.env.num_actions, 
+                                    act_type= self.env.action_space_type, gamma= gamma, lam= lam)
+
+        if self.env.action_space_type == 'discrete':
+            self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
+        elif self.env.action_space_type == 'continuous':
+            self.agent = Policy_PPO_Continuous(policy_params=policy_params, num_actions= self.env.num_actions)
+
         self.logger = Logger(self.env.get_env_academy_name)
 
         

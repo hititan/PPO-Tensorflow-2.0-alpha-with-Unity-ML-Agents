@@ -21,8 +21,8 @@ for episode in range(1000):
     while not done:
         action_size = brain.vector_action_space_size
         if brain.vector_action_space_type == 'continuous':
-            env_info = env.step(np.random.randn(len(env_info.agents), 
-                                                action_size[0]))[default_brain]
+            act = np.random.randn(len(env_info.agents), action_size[0])
+            env_info = env.step(act)[default_brain]
         else:
             action = np.column_stack([np.random.randint(0, action_size[i], size=(len(env_info.agents))) for i in range(len(action_size))])
             env_info = env.step(action)[default_brain]

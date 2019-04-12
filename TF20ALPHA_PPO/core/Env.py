@@ -16,41 +16,54 @@ class UnityEnv():
             self.env = UnityEnvironment(file_name = env_name, seed = seed)
         log("END ML AGENTS INFO")
 
-        self.info = self.env.reset()[self.default_brain]
+        self.info = self.env.reset()[self.default_brain_name]
         #print(self.info)
 
     @property
     def _get_env(self):
         return self.env
 
+    @property 
+    def action_space_type(self):
+        return self.default_brain.vector_action_space_type
+
+    @property
+    def default_brain(self):
+        return self.env.brains[self.default_brain_name]
+
     @property
     def get_env_academy_name(self):
         return self.env.academy_name
 
     @property
-    def default_brain(self):
+    def default_brain_name(self):
         return self.env.brain_names[0]
 
     @property
     def num_actions(self):
-        brain = self.env.brains[self.default_brain]
-        #shape = (None, brain.vector_action_space_size[0])
-        return brain.vector_action_space_size[0]
+        return self.default_brain.vector_action_space_size[0]
+        
     
     @property
     def num_obs(self):
         return self.info.vector_observations.size
+
     
     def reset(self):
-        self.env.step([0])
-        info = self.env.reset()[self.default_brain]
+        # self.env.step([0])
+        info = self.env.reset()[self.default_brain_name]
         o = info.vector_observations[0][None, :]
         r, d = 0, False
         return o, r, d
 
 
     def step(self, a):
-        info = self.env.step([a])[self.default_brain] # a is int here
+
+        if self.action_space_type == 'continuous':
+            info = self.env.step(a)[self.default_brain_name]
+        else:
+            info = self.env.step([a])[self.default_brain_name] # a is int here
+
         r = info.rewards[0]
         d = info.local_done[0]
         o = info.vector_observations[0][None, :]
@@ -62,6 +75,10 @@ class GymCartPole():
     def __init__(self):
         self.env = gym.make('CartPole-v1')
         self.env.seed(0)
+
+    @property 
+    def action_space_type(self):
+        return 'discrete'
 
     @property
     def num_actions(self):
