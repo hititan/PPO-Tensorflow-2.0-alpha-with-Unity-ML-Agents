@@ -1,5 +1,7 @@
 import numpy as np
 
+from core.buffers.per import Memory
+
 
 def statistics_scalar(x):
     """
@@ -12,6 +14,8 @@ def statistics_scalar(x):
 
 
 class Buffer_PPO:
+
+    
 
     def __init__(self, size, obs_size= None, act_size= None, act_type='discrete', gamma= 0.99, lam= 0.95):
 
@@ -31,6 +35,8 @@ class Buffer_PPO:
         self.gamma, self.lam = gamma, lam
         self.ptr, self.path_start_idx, self.max_size = 0,0,size
 
+        self.PER = Memory(250000) # epoch * max_steps_per_epoch
+ 
 
     def store(self, obs, act, rew, val, logp):
 
@@ -60,6 +66,21 @@ class Buffer_PPO:
         # The next line computes rewards-to-go, to be targets for the value function
         self.ret_buf[path_slice] = self.discount_cum_sum(rews, self.gamma)[:-1]
         self.path_start_idx = self.ptr
+
+        # Self Imitation Learning add episode to buffer
+        self.add_episode_to_per(path_slice)
+        
+
+
+    def add_episode_to_per(self, path_slice):
+
+        o = self.obs_buf[path_slice]
+        a = self.act_buf[path_slice]
+        r = self.ret_buf[path_slice]
+
+        for idx in range(len(o)):
+            if r[idx] > 0:
+                self.PER.add((o[idx],a[idx],r[idx]))
 
     
     def get(self):

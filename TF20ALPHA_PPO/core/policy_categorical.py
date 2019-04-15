@@ -34,6 +34,14 @@ class Policy_PPO_Categorical(PolicyBase):
         # Return Metrics
         return loss_pi.numpy().mean(), loss_entropy.numpy().mean(), approx_ent.numpy().mean(), kl.numpy().mean(), loss_v.numpy().mean()
         
+    def update_self_imitation(self, obs, acts, R, is_weights):
+
+        for i in range(4):
+            loss_pi, adv = self.train_pi_imitation_one_step(self.pi, self.optimizer_pi, obs, acts, R, is_weights)
+            loss_v = self.train_v_imitation_one_step (self.v, self.optimizer_v, obs, R, is_weights)
+
+        return adv, loss_pi, loss_v
+
 
     def _value_loss(self, returns, value):
 
@@ -117,5 +125,78 @@ class Policy_PPO_Categorical(PolicyBase):
 
         entropy = kls.categorical_crossentropy(logits, logits, from_logits=True)
         return entropy
+
+
+
+    # ------------------------------------------- Self Imitation
+    
+    def train_pi_imitation_one_step(self, model, optimizer, obs, act, R, is_weights):
+
+        with tf.GradientTape() as tape:
+
+            logits = model(obs)
+            Model_V = self.v.get_value(obs)
+
+            pi_loss, adv  = self._self_imitation_pg_loss(logits, act, R, Model_V, is_weights)
+            
+        grads = tape.gradient(pi_loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+        return pi_loss, adv
+
+    
+    def train_v_imitation_one_step(self, model, optimizer_v, obs, R, is_weights):
+
+        with tf.GradientTape() as tape:
+
+            Model_V = model(obs)
+            v_loss = self._self_imitation_v_loss(R, Model_V, is_weights)
+
+        grads = tape.gradient(v_loss, model.trainable_variables)
+        optimizer_v.apply_gradients(zip(grads, model.trainable_variables))
+
+        return v_loss
+
+
+    def _self_imitation_pg_loss(self, logits, act_imitation, R, Model_V, is_weights, min_batch_size=64, clip = 1):
+
+        # make a maks of valid samples where (R - V > 0) --> (0,1,0,0,1,...)
+        mask = tf.where(R - tf.squeeze(Model_V) > 0.0, tf.ones_like(R), tf.zeros_like(R))
+        num_valid_samples = tf.reduce_sum(mask)
+        num_samples = tf.maximum(num_valid_samples, min_batch_size)
+
+        # make logp for policy_gradient update
+        logp_all = tf.nn.log_softmax(logits)
+        logp = tf.reduce_sum( tf.one_hot(act_imitation, self.num_actions) * logp_all, axis=1)
+
+        # calculate adv = max [(R-V), 0]
+        # clipped advantage as priority for PER
+        adv = tf.stop_gradient(tf.clip_by_value(R - tf.squeeze(Model_V), 0.0, clip))
+        mean_adv = tf.reduce_sum(adv) / num_samples
+
+        loss = -tf.reduce_sum(is_weights * adv * logp) / num_samples
+
+        entropy = tf.reduce_sum(is_weights * self.entropy(logits) * mask) / num_samples
+
+        loss -= entropy * 0.01 # w_entropy_coeff
+
+        return loss, adv
+
+    def _self_imitation_v_loss(self, R, Model_V, is_weights, min_batch_size=64, clip = 1):
+
+        mask = tf.where(R - tf.squeeze(Model_V) > 0.0, tf.ones_like(R), tf.zeros_like(R))
+        num_valid_samples = tf.reduce_sum(mask)
+        num_samples = tf.maximum(num_valid_samples, min_batch_size)
+
+        v_target = R
+        v_estimate = tf.squeeze(Model_V)
+
+        delta = tf.clip_by_value(v_estimate - v_target, -clip, 0) * mask
+        loss = tf.reduce_sum(is_weights * v_estimate * tf.stop_gradient(delta)) / num_samples
+        loss = 0.5 * loss * 0.01
+
+        return loss
+
+
 
 

@@ -108,6 +108,22 @@ class Trainer_PPO:
             obs, act, adv, ret, logp_old = self.buffer.get()
             loss_pi, loss_entropy, approx_ent, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
 
+
+
+
+            # Update Self Imitation
+            obs, acts, R, idxs, is_weights = self.buffer.PER.sample(64)
+
+            adv, im_pi, v_pi = self.agent.update_self_imitation(obs, acts, R, is_weights)
+
+            print(im_pi)
+            print(v_pi)
+
+            self.buffer.PER.update_priorities(idxs,adv)
+
+
+            
+
             # Saving every n steps
             if (epoch % self.save_freq == 0) or (epoch == self.epochs - 1):
                 self.agent.save()

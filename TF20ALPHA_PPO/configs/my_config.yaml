@@ -2,7 +2,7 @@
 trainer: "Trainer_PPO"
 
 # Choose the Environment to load or "" for in Editor training
-env_name:  "./envs/CartPoleV1.exe"
+env_name:  "" # "./envs/CartPoleV1.exe"
 
 # Choose trainer parameters passed to the trainer class
 train_params: 
