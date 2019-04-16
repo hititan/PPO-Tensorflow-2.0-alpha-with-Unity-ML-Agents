@@ -39,5 +39,10 @@ policy_params:
   hidden_sizes_v: [32,32]
   clip_ratio: 0.2
   target_kl: 0.01
-  ent_coef: 0.001
+  ent_coef: 0
+
+sil_params:
+
+  use_sil: yes
+  sil_iters: 10
 

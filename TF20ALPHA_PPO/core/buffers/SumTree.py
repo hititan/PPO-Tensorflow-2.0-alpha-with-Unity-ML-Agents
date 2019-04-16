@@ -1,7 +1,7 @@
 import numpy as np
 
 '''
-Sum Tree is binary tree data structure where the parents value is the sum of its children priorities. 
+SumTree is binary tree data structure where the parents value is the sum of its children priorities. 
 In the leaf nodes you can find priorities and the corresponding data-object (o,a,r)
 
 Goal is searching fast for a priority which is sampled by a random uniform distribution
@@ -13,27 +13,34 @@ Probability of being sampled is Pi = priority[i] / Sum od all priorities
 
 class SumTree:
 
-    data_idx = 0
-
     def __init__(self, capacity):
 
-        self.capacity = capacity
-        self.tree = np.zeros(2*capacity-1) # Because of Binary structure 
-        self.data = np.zeros(capacity, dtype=object)
-        self.n_entries = 0
+        self._capacity = capacity
+        self._tree = np.zeros(2 * self._capacity - 1) # Because of Binary structure 
+        self._n_entries = 0
         
+
+    @property
+    def n_entries(self):
+        return self._n_entries
+
+
     def _propagate(self,idx,change):
-
         '''
-        updates everything from idx as start to the root node
+        Updates everything from idx as start to the root node
+        Propagates the changes all up from the leafes to the root node
         '''
-        parent = (idx-1) // 2
 
-        self.tree[parent] +=change
+        # Division without digits after the decimal point
+        # Get the parent node of child node
+        parent = (idx-1) // 2 
+
+        self._tree[parent] +=change
 
         # Recursion until root node is reached
         if parent !=0:
             self._propagate(parent,change)
+
 
     def _retrieve(self, idx, sum):
         '''
@@ -54,52 +61,56 @@ class SumTree:
         left = 2 * idx + 1
         right = left + 1
 
-        if left >= len(self.tree):
+        if left >= len(self._tree):
             return idx
         
-        if sum <= self.tree[left]:
+        if sum <= self._tree[left]:
             return self._retrieve(left, sum)
 
         else: 
-            return self._retrieve(right, sum - self.tree[left])
+            return self._retrieve(right, sum - self._tree[left])
 
-        
-    def total(self):
-        return self.tree[0]
+
+    @property
+    def total_sum(self):
+        return self._tree[0]
     
-    def add(self, priority, data):
+
+    def add(self, data_idx, priority):
         '''
         Stores a priority and the Date belonging to the priority
         '''
-        idx = self.data_idx + self.capacity - 1
 
-        self.data[self.data_idx] = data
+        # index for tree leafes begins at 
+        # data_idx + capacity of tree Array --> tree Array size = 2 * capacity
+        idx = data_idx + self._capacity - 1
+
         self.update(idx, priority)
-
-
-        self.data_idx +=1
-
-        if self.data_idx >= self.capacity:
-            self.data_idx = 0
         
-        if self.n_entries < self.capacity:
-            self.n_entries +=1
+        if self._n_entries < self._capacity:
+            self._n_entries += 1
+
 
     def update(self, idx, priority):
         '''
-        Update Priority in Tree
+        Update Priority in _tree
         '''
 
-        change = priority - self.tree[idx]
+        change = priority - self._tree[idx]
 
-        self.tree[idx] = priority
+        self._tree[idx] = priority
         self._propagate(idx, change)
 
-    def get(self, sum):
+
+    def get_priority(self, idx):
+        # idx from sum tree
+        return self._tree[idx]
+
+
+    def find_prefixsum_idx(self, mass):
         '''
         Get Priority and Sample
         '''
-        idx = self._retrieve(0,sum)
-        data_idx = idx - self.capacity + 1
-
-        return (idx, self.tree[idx], self.data[data_idx])
+        # idx from sum tree
+        idx = self._retrieve(0, mass)
+        return idx 

@@ -22,6 +22,7 @@ class Trainer_PPO:
                  load_model=False,
                  save_freq=1,
                  policy_params=dict(),
+                 sil_params=dict(),
                  **kwargs):
 
         self.env = env
@@ -35,6 +36,7 @@ class Trainer_PPO:
         self.load_model = load_model
         self.save_freq = save_freq
         self.policy_params = policy_params
+        self.sil_params = sil_params
 
         log("Policy Parameters")
         pprint(policy_params, indent=5, width=10)
@@ -43,7 +45,7 @@ class Trainer_PPO:
                                     act_type= self.env.action_space_type, gamma= gamma, lam= lam)
 
         if self.env.action_space_type == 'discrete':
-            self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
+            self.agent = Policy_PPO_Categorical(policy_params= policy_params, sil_params= sil_params, num_actions= self.env.num_actions)
         elif self.env.action_space_type == 'continuous':
             self.agent = Policy_PPO_Continuous(policy_params=policy_params, num_actions= self.env.num_actions)
 
@@ -97,7 +99,7 @@ class Trainer_PPO:
                     last_val = r if d else self.agent.v.get_value(o)
                     self.buffer.finish_path(last_val)
 
-                    if terminal: # and ep_len > 10:
+                    if terminal and ep_len > 10:
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
 
@@ -111,17 +113,18 @@ class Trainer_PPO:
 
 
 
-            # Update Self Imitation
-            obs, acts, R, idxs, is_weights = self.buffer.PER.sample(64)
+            if self.sil_params['use_sil']:
 
-            adv, im_pi, v_pi = self.agent.update_self_imitation(obs, acts, R, is_weights)
+                # Update Self Imitation
+                # obs, acts, R, idxs, is_weights = self.buffer.PER.sample(250)
 
-            print(im_pi)
-            print(v_pi)
+                obs, acts, R = self.buffer.PER.sample_from_replay(512)
+                adv, _, __ = self.agent.update_SIL(obs, acts, R) # is_weights)
 
-            self.buffer.PER.update_priorities(idxs,adv)
+                #self.buffer.PER.update_priorities(idxs, adv)
 
 
+            
             
 
             # Saving every n steps

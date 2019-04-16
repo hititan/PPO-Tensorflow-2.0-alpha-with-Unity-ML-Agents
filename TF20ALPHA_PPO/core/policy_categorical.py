@@ -1,46 +1,63 @@
 import tensorflow as tf
 import numpy as np
+
 from core.models import pi_model, v_model, pi_gaussian_model
 from core.policy_base import PolicyBase
+from core.policy_sil import SIL
+
 import tensorflow.keras.losses as kls
 from utils.logger import log
+
 
 
 class Policy_PPO_Categorical(PolicyBase):
 
     def __init__(self,
                  policy_params=dict(), 
+                 sil_params=dict(),
                  num_actions = None):
 
-        super().__init__(**policy_params, num_actions= num_actions)
+        super().__init__(**policy_params, **sil_params, num_actions= num_actions)
 
         self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
         self.v = v_model(self.hidden_sizes_v)
 
+        # If SIL is activated
+        if self.update_SIL:
+            self.sil = SIL(self.pi, self.v, self.optimizer_pi, self.optimizer_v, self.num_actions)
+
 
     def update(self, observations, actions, advs, returns, logp_t):
+        '''
+        Update the Policy Gradient and the Value Network
+        '''
 
         # Policy Update Cycle for iter steps
         for i in range(self.train_pi_iters):
-            loss_pi, loss_entropy, approx_ent, kl = self.train_pi_one_step(self.pi, self.optimizer_pi, observations, actions, advs, logp_t)
+            loss_pi, loss_entropy, approx_ent, kl = self.train_pi_one_step(observations, actions, advs, logp_t)
             if kl > 1.5 * self.target_kl:
                 log("Early stopping at step %d due to reaching max kl." %i)
                 break
 
         # Value Update Cycle for iter steps
         for _ in range(self.train_v_iters):
-            loss_v = self.train_v_one_step(self.v, self.optimizer_v, observations, returns)
+            loss_v = self.train_v_one_step(observations, returns)
             
         # Return Metrics
         return loss_pi.numpy().mean(), loss_entropy.numpy().mean(), approx_ent.numpy().mean(), kl.numpy().mean(), loss_v.numpy().mean()
         
-    def update_self_imitation(self, obs, acts, R, is_weights):
 
-        for i in range(4):
-            loss_pi, adv = self.train_pi_imitation_one_step(self.pi, self.optimizer_pi, obs, acts, R, is_weights)
-            loss_v = self.train_v_imitation_one_step (self.v, self.optimizer_v, obs, R, is_weights)
-
-        return adv, loss_pi, loss_v
+    def update_SIL(self, obs, acts, R): # is_weights):
+        '''
+        Update Cycle for SIL if SIL is activated
+        '''
+        if self.use_sil:
+            for _ in range(self.sil_iters):
+                loss_pi, adv, loss_v = self.sil.train_sil_one_step(obs, acts, R) # is_weights)
+                print('loss pi: ' + str(loss_pi.numpy().mean()))
+                print('loss v: ' + str(loss_v.numpy().mean()))
+                
+            return adv, loss_pi, loss_v
 
 
     def _value_loss(self, returns, value):
@@ -76,35 +93,34 @@ class Policy_PPO_Categorical(PolicyBase):
 
     
     @tf.function
-    def train_pi_one_step(self, model, optimizer, obs, act, adv, logp_old):
+    def train_pi_one_step(self, obs, act, adv, logp_old):
 
         with tf.GradientTape() as tape:
 
-            logits = model(obs)
+            logits = self.pi(obs)
             pi_loss, entropy_loss, approx_ent, approx_kl  = self._pi_loss(logits, logp_old, act, adv)
             
-        grads = tape.gradient(pi_loss, model.trainable_variables)
-        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        grads = tape.gradient(pi_loss, self.pi.trainable_variables)
+        self.optimizer_pi.apply_gradients(zip(grads, self.pi.trainable_variables))
 
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
 
     @tf.function()
-    def train_v_one_step(self, model, optimizer_v, obs, returns):
+    def train_v_one_step(self, obs, returns):
 
         with tf.GradientTape() as tape:
 
-            values = model(obs)
+            values = self.v(obs)
             v_loss = self._value_loss(returns, values)
 
-        grads = tape.gradient(v_loss, model.trainable_variables)
-        optimizer_v.apply_gradients(zip(grads, model.trainable_variables))
+        grads = tape.gradient(v_loss, self.v.trainable_variables)
+        self.optimizer_v.apply_gradients(zip(grads, self.v.trainable_variables))
 
         return v_loss
 
 
     def entropy(self, logits):
-
         '''
         Entropy term for more randomness which means more exploration in ppo -> 
         
@@ -121,81 +137,20 @@ class Policy_PPO_Categorical(PolicyBase):
 
         return entropy
 
+
     def entropy2(self, logits):
+        '''
+        Entropy calc with keras over logits ??
+        '''
 
         entropy = kls.categorical_crossentropy(logits, logits, from_logits=True)
         return entropy
 
 
 
-    # ------------------------------------------- Self Imitation
-    
-    def train_pi_imitation_one_step(self, model, optimizer, obs, act, R, is_weights):
-
-        with tf.GradientTape() as tape:
-
-            logits = model(obs)
-            Model_V = self.v.get_value(obs)
-
-            pi_loss, adv  = self._self_imitation_pg_loss(logits, act, R, Model_V, is_weights)
-            
-        grads = tape.gradient(pi_loss, model.trainable_variables)
-        optimizer.apply_gradients(zip(grads, model.trainable_variables))
-
-        return pi_loss, adv
-
-    
-    def train_v_imitation_one_step(self, model, optimizer_v, obs, R, is_weights):
-
-        with tf.GradientTape() as tape:
-
-            Model_V = model(obs)
-            v_loss = self._self_imitation_v_loss(R, Model_V, is_weights)
-
-        grads = tape.gradient(v_loss, model.trainable_variables)
-        optimizer_v.apply_gradients(zip(grads, model.trainable_variables))
-
-        return v_loss
 
 
-    def _self_imitation_pg_loss(self, logits, act_imitation, R, Model_V, is_weights, min_batch_size=64, clip = 1):
 
-        # make a maks of valid samples where (R - V > 0) --> (0,1,0,0,1,...)
-        mask = tf.where(R - tf.squeeze(Model_V) > 0.0, tf.ones_like(R), tf.zeros_like(R))
-        num_valid_samples = tf.reduce_sum(mask)
-        num_samples = tf.maximum(num_valid_samples, min_batch_size)
-
-        # make logp for policy_gradient update
-        logp_all = tf.nn.log_softmax(logits)
-        logp = tf.reduce_sum( tf.one_hot(act_imitation, self.num_actions) * logp_all, axis=1)
-
-        # calculate adv = max [(R-V), 0]
-        # clipped advantage as priority for PER
-        adv = tf.stop_gradient(tf.clip_by_value(R - tf.squeeze(Model_V), 0.0, clip))
-        mean_adv = tf.reduce_sum(adv) / num_samples
-
-        loss = -tf.reduce_sum(is_weights * adv * logp) / num_samples
-
-        entropy = tf.reduce_sum(is_weights * self.entropy(logits) * mask) / num_samples
-
-        loss -= entropy * 0.01 # w_entropy_coeff
-
-        return loss, adv
-
-    def _self_imitation_v_loss(self, R, Model_V, is_weights, min_batch_size=64, clip = 1):
-
-        mask = tf.where(R - tf.squeeze(Model_V) > 0.0, tf.ones_like(R), tf.zeros_like(R))
-        num_valid_samples = tf.reduce_sum(mask)
-        num_samples = tf.maximum(num_valid_samples, min_batch_size)
-
-        v_target = R
-        v_estimate = tf.squeeze(Model_V)
-
-        delta = tf.clip_by_value(v_estimate - v_target, -clip, 0) * mask
-        loss = tf.reduce_sum(is_weights * v_estimate * tf.stop_gradient(delta)) / num_samples
-        loss = 0.5 * loss * 0.01
-
-        return loss
 
 
 

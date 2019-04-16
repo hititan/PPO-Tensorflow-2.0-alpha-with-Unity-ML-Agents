@@ -1,6 +1,6 @@
 import numpy as np
 
-from core.buffers.per import Memory
+from core.buffers.PrioritizedExperineceReplay import PrioritizedReplayBuffer 
 
 
 def statistics_scalar(x):
@@ -35,7 +35,7 @@ class Buffer_PPO:
         self.gamma, self.lam = gamma, lam
         self.ptr, self.path_start_idx, self.max_size = 0,0,size
 
-        self.PER = Memory(250000) # epoch * max_steps_per_epoch
+        self.PER = PrioritizedReplayBuffer(250000) # epoch * max_steps_per_epoch
  
 
     def store(self, obs, act, rew, val, logp):
@@ -80,7 +80,7 @@ class Buffer_PPO:
 
         for idx in range(len(o)):
             if r[idx] > 0:
-                self.PER.add((o[idx],a[idx],r[idx]))
+                self.PER.add(o[idx],a[idx],r[idx])
 
     
     def get(self):

@@ -10,12 +10,14 @@ class Manager:
                  env_name="",
                  trainer=None,
                  train_params=None,
-                 policy_params=None):
+                 policy_params=None,
+                 sil_params=None):
 
         self.env_name = env_name            # ENV to load
         self.trainer = trainer              # Trainer Policy from yaml config
         self.train_params = train_params    # Trainer Parameters from yaml config passed to trainer class on init
         self.policy_params = policy_params  # Policy Parameters from yaml config 
+        self.sil_params = sil_params
 
         # Start ML Agents Environment | Without filename in editor training is started
         # self.env = GymCartPole() 
@@ -31,8 +33,8 @@ class Manager:
 
         # Get the trainer class for initialization
         trainer_class = getattr(core, self.trainer)
-        trainer = trainer_class(**self.train_params, env=self.env, policy_params=self.policy_params)
+        trainer = trainer_class(**self.train_params, env=self.env, policy_params=self.policy_params, sil_params=self.sil_params)
         # Start the trainer
         trainer.start()
         # Close the Environment at the end
-        self.env.close()
+        self.env._get_env.close()
