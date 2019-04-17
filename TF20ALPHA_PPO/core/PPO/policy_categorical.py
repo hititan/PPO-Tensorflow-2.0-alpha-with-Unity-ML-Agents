@@ -1,9 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
-from core.models import pi_model, v_model, pi_gaussian_model
-from core.policy_base import PolicyBase
-from core.policy_sil import SIL
+from core.PPO.models import pi_model, v_model, pi_gaussian_model
+from core.PPO.policy_base import PolicyBase
 
 import tensorflow.keras.losses as kls
 from utils.logger import log
@@ -14,17 +13,13 @@ class Policy_PPO_Categorical(PolicyBase):
 
     def __init__(self,
                  policy_params=dict(), 
-                 sil_params=dict(),
                  num_actions = None):
 
-        super().__init__(**policy_params, **sil_params, num_actions= num_actions)
+        super().__init__(**policy_params, num_actions= num_actions)
 
         self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
         self.v = v_model(self.hidden_sizes_v)
 
-        # If SIL is activated
-        if self.update_SIL:
-            self.sil = SIL(self.pi, self.v, self.optimizer_pi, self.optimizer_v, self.num_actions)
 
 
     def update(self, observations, actions, advs, returns, logp_t):
@@ -46,18 +41,6 @@ class Policy_PPO_Categorical(PolicyBase):
         # Return Metrics
         return loss_pi.numpy().mean(), loss_entropy.numpy().mean(), approx_ent.numpy().mean(), kl.numpy().mean(), loss_v.numpy().mean()
         
-
-    def update_SIL(self, obs, acts, R): # is_weights):
-        '''
-        Update Cycle for SIL if SIL is activated
-        '''
-        if self.use_sil:
-            for _ in range(self.sil_iters):
-                loss_pi, adv, loss_v = self.sil.train_sil_one_step(obs, acts, R) # is_weights)
-                print('loss pi: ' + str(loss_pi.numpy().mean()))
-                print('loss v: ' + str(loss_v.numpy().mean()))
-                
-            return adv, loss_pi, loss_v
 
 
     def _value_loss(self, returns, value):
@@ -129,11 +112,11 @@ class Policy_PPO_Categorical(PolicyBase):
         cannot be calculated this way
         '''
         
-        a0 = logits - tf.reduce_max(logits, axis=-1, keepdims=True)
+        a0 = logits - tf.reduce_max(logits, axis= -1, keepdims=True)
         exp_a0 = tf.exp(a0)
-        z0 = tf.reduce_sum(exp_a0, axis=-1, keepdims=True)
+        z0 = tf.reduce_sum(exp_a0, axis= -1, keepdims=True)
         p0 = exp_a0 / z0
-        entropy = tf.reduce_sum(p0 * (tf.math.log(z0) - a0), axis=-1)
+        entropy = tf.reduce_sum(p0 * (tf.math.log(z0) - a0), axis= -1)
 
         return entropy
 
@@ -142,10 +125,14 @@ class Policy_PPO_Categorical(PolicyBase):
         '''
         Entropy calc with keras over logits ??
         '''
-
         entropy = kls.categorical_crossentropy(logits, logits, from_logits=True)
         return entropy
 
+    def cat_entropy_softmax(self, p0):
+        return -tf.reduce_sum(p0 * tf.math.log(p0 + 1e-6), axis = 1)
+
+    def mse(self, pred, target):
+        return tf.square(pred-target)/2.0
 
 
 

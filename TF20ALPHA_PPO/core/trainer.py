@@ -3,10 +3,12 @@ import numpy as np
 import time
 from utils.logger import log, Logger
 from pprint import pprint
-from core.buffer import Buffer_PPO
-from core.policy_categorical import Policy_PPO_Categorical
-from core.policy_continuous import Policy_PPO_Continuous
+from core.buffers.buffer import Buffer_PPO
+from core.PPO.policy_categorical import Policy_PPO_Categorical
+from core.PPO.policy_continuous import Policy_PPO_Continuous
 from core.Env import UnityEnv
+
+from core.SIL.policy_sil import SIL
 
 
 class Trainer_PPO:
@@ -45,9 +47,18 @@ class Trainer_PPO:
                                     act_type= self.env.action_space_type, gamma= gamma, lam= lam)
 
         if self.env.action_space_type == 'discrete':
-            self.agent = Policy_PPO_Categorical(policy_params= policy_params, sil_params= sil_params, num_actions= self.env.num_actions)
+
+            self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
+
+            if self.sil_params['use_sil']:
+
+                self.SIL = SIL(**self.sil_params, pi =self.agent.pi, v= self.agent.v, 
+                                optimizer_pi = self.agent.optimizer_pi, optimizer_v = self.agent.optimizer_v, 
+                                num_actions = self.env.num_actions, ppo_buffer= self.buffer)
+
         elif self.env.action_space_type == 'continuous':
-            self.agent = Policy_PPO_Continuous(policy_params=policy_params, num_actions= self.env.num_actions)
+
+            self.agent = Policy_PPO_Continuous(policy_params= policy_params, num_actions= self.env.num_actions)
 
         self.logger = Logger(self.env.get_env_academy_name)
 
@@ -99,34 +110,24 @@ class Trainer_PPO:
                     last_val = r if d else self.agent.v.get_value(o)
                     self.buffer.finish_path(last_val)
 
-                    if terminal and ep_len > 10:
+                    if terminal: 
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
 
+                        if self.sil_params['use_sil']:
+                            self.SIL.add_episode_to_per()
+
                     o, r, d = self.env.reset()
                     ep_ret, ep_len = 0, 0
-      
+
             # Update via PPO
             obs, act, adv, ret, logp_old = self.buffer.get()
             loss_pi, loss_entropy, approx_ent, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
 
-
-
-
+            # Update Self Imitation
             if self.sil_params['use_sil']:
-
-                # Update Self Imitation
-                # obs, acts, R, idxs, is_weights = self.buffer.PER.sample(250)
-
-                obs, acts, R = self.buffer.PER.sample_from_replay(512)
-                adv, _, __ = self.agent.update_SIL(obs, acts, R) # is_weights)
-
-                #self.buffer.PER.update_priorities(idxs, adv)
-
-
-            
-            
-
+                self.SIL.update_SIL()
+                
             # Saving every n steps
             if (epoch % self.save_freq == 0) or (epoch == self.epochs - 1):
                 self.agent.save()

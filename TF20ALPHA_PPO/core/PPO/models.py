@@ -91,8 +91,6 @@ class pi_gaussian_model(tf.keras.Model):
 
 
 
-
-
 class v_model(tf.keras.Model):
 
     def __init__(self, hidden_sizes_v=(32,32)):
@@ -113,21 +111,4 @@ class v_model(tf.keras.Model):
         value = self.predict(obs)
         return  np.squeeze(value, axis=-1)
 
-
-# class my_model(tf.keras.Model):
-
-#     def __init__(self, name='mlp', hidden_sizes=(32,32), activation='relu', num_outputs=None):
-
-#         super().__init__(name)
- 
-#         self.hidden_layers = tf.keras.Sequential([kl.Dense(h, activation=activation) for h in hidden_sizes])
-#         self.output = kl.Dense(num_outputs, name= name + '_output')
-
-#         self.dist = ProbabilityDistribution()
-    
-#      def call(self, inputs):
-
-#         tensor_input = tf.convert_to_tensor(inputs)
-#         hidden = self.hidden_layers(tensor_input)
-#         return self.output(hidden)
 

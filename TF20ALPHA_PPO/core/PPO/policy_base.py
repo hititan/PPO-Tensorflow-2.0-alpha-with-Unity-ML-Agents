@@ -15,8 +15,6 @@ class PolicyBase:
                  clip_ratio=0.2,
                  target_kl=0.01,
                  ent_coef=0,
-                 use_sil=False,
-                 sil_iters=4,
                  num_actions=None,
                  **kwargs):
         
@@ -30,10 +28,6 @@ class PolicyBase:
         self.clip_ratio = clip_ratio
         self.target_kl = target_kl
         self.ent_coef = ent_coef
-
-        # Arguments from config for SIL
-        self.use_sil = use_sil
-        self.sil_iters = sil_iters
 
         # Additional Arguments
         self.num_actions = num_actions

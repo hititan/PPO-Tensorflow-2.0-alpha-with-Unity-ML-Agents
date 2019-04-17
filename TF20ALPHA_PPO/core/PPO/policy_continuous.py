@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
-from core.models import pi_model, v_model, pi_gaussian_model
-from core.policy_base import PolicyBase
+from core.PPO.models import pi_model, v_model, pi_gaussian_model
+from core.PPO.policy_base import PolicyBase
 import tensorflow.keras.losses as kls
 from utils.logger import log
 

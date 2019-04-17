@@ -1,7 +1,5 @@
 import numpy as np
 
-from core.buffers.PrioritizedExperineceReplay import PrioritizedReplayBuffer 
-
 
 def statistics_scalar(x):
     """
@@ -19,23 +17,23 @@ class Buffer_PPO:
 
     def __init__(self, size, obs_size= None, act_size= None, act_type='discrete', gamma= 0.99, lam= 0.95):
 
-        self.obs_buf = np.empty((size, obs_size), dtype=np.float32)
+        self.obs_buf = np.zeros((size, obs_size), dtype=np.float32)
 
         if act_type == 'discrete':
-            self.act_buf = np.empty((size,), dtype=np.int32)
+            self.act_buf = np.zeros((size,), dtype=np.int32)
         else:
-            self.act_buf = np.empty((size, act_size), dtype=np.float32) 
+            self.act_buf = np.zeros((size, act_size), dtype=np.float32) 
 
-        self.adv_buf = np.empty((size,), dtype=np.float32)
-        self.rew_buf = np.empty((size,), dtype=np.float32)
-        self.ret_buf = np.empty((size,), dtype=np.float32)
-        self.val_buf = np.empty((size,), dtype=np.float32)
-        self.logp_buf = np.empty((size,), dtype=np.float32)
+        self.adv_buf = np.zeros((size,), dtype=np.float32)
+        self.rew_buf = np.zeros((size,), dtype=np.float32)
+        self.ret_buf = np.zeros((size,), dtype=np.float32)
+        self.val_buf = np.zeros((size,), dtype=np.float32)
+        self.logp_buf = np.zeros((size,), dtype=np.float32)
 
         self.gamma, self.lam = gamma, lam
         self.ptr, self.path_start_idx, self.max_size = 0,0,size
 
-        self.PER = PrioritizedReplayBuffer(250000) # epoch * max_steps_per_epoch
+        self.trajectory = None
  
 
     def store(self, obs, act, rew, val, logp):
@@ -67,20 +65,12 @@ class Buffer_PPO:
         self.ret_buf[path_slice] = self.discount_cum_sum(rews, self.gamma)[:-1]
         self.path_start_idx = self.ptr
 
-        # Self Imitation Learning add episode to buffer
-        self.add_episode_to_per(path_slice)
+        # Save trajecory for SIL Episodes
+        self.trajectory = [self.obs_buf[path_slice], self.act_buf[path_slice], rews] #self.rew_buf[path_slice]]
         
 
-
-    def add_episode_to_per(self, path_slice):
-
-        o = self.obs_buf[path_slice]
-        a = self.act_buf[path_slice]
-        r = self.ret_buf[path_slice]
-
-        for idx in range(len(o)):
-            if r[idx] > 0:
-                self.PER.add(o[idx],a[idx],r[idx])
+    def get_trajectory(self):
+        return self.trajectory
 
     
     def get(self):

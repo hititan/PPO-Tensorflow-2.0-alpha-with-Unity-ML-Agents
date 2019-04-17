@@ -17,7 +17,7 @@ class UnityEnv():
         log("END ML AGENTS INFO")
 
         self.info = self.env.reset()[self.default_brain_name]
-        #print(self.info)
+        # print(self.info)
 
     @property
     def _get_env(self):
@@ -50,7 +50,6 @@ class UnityEnv():
 
     
     def reset(self):
-        # self.env.step([0])
         info = self.env.reset()[self.default_brain_name]
         o = info.vector_observations[0][None, :]
         r, d = 0, False
