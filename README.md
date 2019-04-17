@@ -1,4 +1,4 @@
-# This is an implementation of the Proximla Policy Optimization (PPO) Algortihm in Tensorflow 2.0.0-alpha. Training environments are made with Unity 3D
+# This is an implementation of the Proximla Policy Optimization (PPO) Algortihm in Tensorflow 2.0.0-alpha. Training environments are (CartPole, BalSorter, RollerBall, Foklift) made with Unity 3D
 
 <img src="docs/images/unity-wide.png" align="middle" width="3000"/>
 
