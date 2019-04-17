@@ -1,3 +1,5 @@
+# This is an implementation of the Proximla Policy Optimization (PPO) Algortihm in Tensorflow 2.0.0-alpha. Training environments are made with Unity 3D
+
 <img src="docs/images/unity-wide.png" align="middle" width="3000"/>
 
 <img src="docs/images/image-banner.png" align="middle" width="3000"/>
